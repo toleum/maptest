@@ -38,6 +38,7 @@
 | `scripts/fetch_osm.py` | выгрузка из OSM, с запасными зеркалами Overpass |
 | `scripts/fetch_overture.py` | выгрузка из Overture (последний релиз) |
 | `scripts/build.py` | сведение, категории, CSV, история изменений |
-| `site/index.html` | сама карта |
+| `site/index.html` | карта 2D |
+| `site/3d.html` | карта 3D: дома по этажности (OpenFreeMap) + заведения |
 | `data/places.csv` | справочник (обновляется ботом) |
 | `data/changes.md` | что появилось и пропало от сборки к сборке |
