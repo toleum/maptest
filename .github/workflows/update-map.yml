@@ -1,0 +1,56 @@
+name: Обновить карту
+
+on:
+  schedule:
+    - cron: "17 2 * * 1"   # каждый понедельник, 07:17 по Алматы
+  workflow_dispatch:        # кнопка Run workflow во вкладке Actions
+  push:
+    branches: [main]
+    paths: ["config.json", "scripts/**", "site/index.html", ".github/workflows/**"]
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: map
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: OpenStreetMap
+        run: python scripts/fetch_osm.py
+      - name: Overture Maps
+        run: python scripts/fetch_overture.py
+      - name: Сведение и сборка
+        run: python scripts/build.py
+      - name: Сохранить справочник и историю изменений
+        run: |
+          git config user.name "map-bot"
+          git config user.email "map-bot@users.noreply.github.com"
+          git add data/
+          git diff --cached --quiet || git commit -m "Обновление данных $(date +%F)"
+          git push
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.d.outputs.page_url }}
+    steps:
+      - id: d
+        uses: actions/deploy-pages@v4

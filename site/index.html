@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Открытая карта района</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: map fills the screen; panel on the left (desktop) or a pull-up sheet (phone) */
+:root{--bg:#f3f5f2;--surface:#fff;--ink:#1d2621;--muted:#5d6b63;--line:#d8dfda;--accent:#1f6f5c;--soft:#e7efe9;
+ --both:#1f6f5c;--osm:#2563eb;--ovt:#d97706;
+ --font:"Golos Text",system-ui,sans-serif;--mono:"IBM Plex Mono",ui-monospace,monospace;color-scheme:light}
+@media (prefers-color-scheme:dark){:root{--bg:#121815;--surface:#1a221e;--ink:#e3ebe6;--muted:#9aaba1;--line:#2c3832;--accent:#5fc2a6;--soft:#223029;--both:#5fc2a6;--osm:#6b9cff;--ovt:#f5a524;color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:14px/1.45 var(--font)}
+#app{display:grid;grid-template-columns:380px 1fr;height:100%}
+#map{height:100%;background:var(--soft);position:relative;z-index:0}
+@media (prefers-color-scheme:dark){.leaflet-tile-pane{filter:brightness(.62) contrast(1.1) saturate(.6)}}
+aside{background:var(--surface);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0;padding-top:env(safe-area-inset-top,0px);padding-left:env(safe-area-inset-left,0px)}
+.head{padding:18px 18px 12px;display:grid;gap:6px;border-bottom:1px solid var(--line)}
+.ey{font-family:var(--mono);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+h1{margin:0;font-size:22px;line-height:1.15;font-weight:700;text-wrap:balance}
+.meta{font-size:12.5px;color:var(--muted)}
+.ctl{padding:12px 18px;display:grid;gap:10px;border-bottom:1px solid var(--line)}
+input[type=search]{font:inherit;width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+.seg{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{font:inherit;font-size:12.5px;padding:7px 4px;border:0;border-left:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px}
+.seg button:first-child{border-left:0}
+.seg button[aria-pressed=true]{background:var(--soft);font-weight:600}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:inherit;font-size:12.5px;padding:5px 10px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.chip[aria-pressed=false]{opacity:.45}
+.chip .n,.seg .n{font-family:var(--mono);color:var(--muted);font-size:11.5px}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}
+button:focus-visible,input:focus-visible,.row:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.count{padding:8px 18px;font-size:12.5px;color:var(--muted);display:flex;justify-content:space-between;gap:8px}
+.count a{color:var(--accent)}
+.list{overflow:auto;flex:1;min-height:0}
+.row{padding:9px 18px;border-top:1px solid var(--line);cursor:pointer;display:grid;gap:1px}
+.row:hover{background:var(--soft)}
+.row b{font-weight:600;display:flex;gap:7px;align-items:center}
+.row b i{font-style:normal;font-weight:400;color:var(--muted)}
+.row span{font-size:12.5px;color:var(--muted);overflow-wrap:anywhere}
+.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:var(--surface);color:var(--ink)}
+.leaflet-popup-content{margin:11px 14px;font-size:13px;line-height:1.45;font-family:var(--font)}
+.leaflet-popup-content b{font-size:14.5px}
+.leaflet-popup-content a{color:var(--accent)}
+.pill{font-family:var(--mono);font-size:11px;padding:1px 6px;border-radius:4px;color:#fff}
+.leaflet-container a.leaflet-popup-close-button{color:var(--muted)}
+.leaflet-control-attribution{font-size:11px}
+#toggle{display:none}
+@media (max-width:760px){
+ #app{grid-template-columns:1fr;grid-template-rows:1fr}
+ #map{grid-area:1/1}
+ aside{grid-area:1/1;align-self:end;z-index:1000;max-height:62%;border-right:0;border-top:1px solid var(--line);border-radius:14px 14px 0 0;box-shadow:0 -8px 30px rgba(0,0,0,.15);padding-bottom:env(safe-area-inset-bottom,0px);padding-right:env(safe-area-inset-right,0px)}
+ aside.min .ctl,aside.min .count,aside.min .list,aside.min .meta{display:none}
+ #toggle{display:block;font:inherit;font-size:12.5px;justify-self:start;padding:4px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);cursor:pointer}
+ .head{padding:12px 16px 10px}.ctl{padding:10px 16px}.row{padding:9px 16px}.count{padding:8px 16px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+ <aside id="panel">
+  <div class="head">
+   <div class="ey" id="ey">Открытые данные</div>
+   <h1 id="h1">Загрузка…</h1>
+   <div class="meta" id="meta"></div>
+   <button id="toggle" aria-expanded="true">Свернуть</button>
+  </div>
+  <div class="ctl">
+   <input type="search" id="q" placeholder="Поиск: название, тип, адрес" autocomplete="off">
+   <div class="seg" id="src" role="group" aria-label="Источник"></div>
+   <div class="chips" id="cats"></div>
+  </div>
+  <div class="count"><span id="cnt"></span><a href="places.csv" download>Скачать CSV</a></div>
+  <div class="list" id="list"></div>
+ </aside>
+ <div id="map"></div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const SRC=[["Все",null],["В обоих",0,"--both"],["Только OSM",1,"--osm"],["Только Overture",2,"--ovt"]];
+const SRCNAME=["OSM + Overture","OpenStreetMap","Overture Maps"];
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const st={q:"",src:null,cats:new Set()};
+let D,R,map,layer,markers=[];
+fetch("data.json").then(r=>r.json()).then(init).catch(()=>{document.getElementById("h1").textContent="Данные ещё не собраны"});
+function init(d){
+ D=d;R=d.rows.map((r,i)=>({i,src:r[0],cat:r[1],type:r[2],name:r[3],addr:r[4],hours:r[5],phone:r[6],web:r[7],lat:r[8],lon:r[9],osm:r[10],ovt:r[11]}));
+ R.forEach(r=>r.text=(r.name+" "+r.type+" "+r.addr).toLowerCase());
+ st.cats=new Set(d.cats.map((_,i)=>i));
+ document.title=d.title+" — открытая карта";
+ document.getElementById("ey").textContent=d.city+" · OSM + Overture";
+ document.getElementById("h1").textContent=d.title;
+ let m=`Обновлено ${d.updated}`+(d.overture_release?` · Overture ${d.overture_release}`:"");
+ if(d.added!=null)m+=` · +${d.added} / −${d.removed} за сборку`;
+ document.getElementById("meta").textContent=m;
+ const srcCount=[R.length,d.stats.both,d.stats.osm,d.stats.overture];
+ document.getElementById("src").innerHTML=SRC.map((s,i)=>`<button aria-pressed="${i===0}" data-i="${i}">${s[2]?`<span class="dot" style="background:var(${s[2]})"></span>`:""}${s[0]} <span class="n">${srcCount[i]}</span></button>`).join("");
+ document.getElementById("cats").innerHTML=d.cats.map((c,i)=>`<button class="chip" aria-pressed="true" data-i="${i}">${c} <span class="n">${R.filter(r=>r.cat===i).length}</span></button>`).join("");
+ map=L.map("map",{preferCanvas:true,zoomControl:false});
+ L.control.zoom({position:"topright"}).addTo(map);
+ L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:'© <a href="https://www.openstreetmap.org/copyright">участники OpenStreetMap</a> · места: OSM, <a href="https://overturemaps.org">Overture Maps</a>'}).addTo(map);
+ const b=L.geoJSON(d.boundary,{style:{color:css("--accent"),weight:2,fill:false,dashArray:"6 5"},interactive:false}).addTo(map);
+ const mob=innerWidth<=760;if(mob){panel.classList.add("min");tg.textContent="Развернуть";tg.setAttribute("aria-expanded","false")}
+ map.fitBounds(b.getBounds(),{paddingTopLeft:[10,10],paddingBottomRight:[10,mob?150:10]});
+ layer=L.layerGroup().addTo(map);
+ const col=[css("--both"),css("--osm"),css("--ovt")];
+ markers=R.map(r=>L.circleMarker([r.lat,r.lon],{radius:4.5,weight:1,color:css("--surface"),fillColor:col[r.src],fillOpacity:.9}).bindPopup(()=>popup(r)));
+ render();
+}
+function popup(r){
+ const c=["--both","--osm","--ovt"][r.src];
+ let h=`<b>${esc(r.name||r.type)}</b><br>${esc(r.name?r.type:"Без названия")} · ${esc(D.cats[r.cat])}`;
+ if(r.addr)h+=`<br>${esc(r.addr)}`;if(r.hours)h+=`<br>Часы: ${esc(r.hours)}`;if(r.phone)h+=`<br>${esc(r.phone)}`;
+ if(r.web){const u=/^https?:/.test(r.web)?r.web:"https://"+r.web;h+=`<br><a href="${esc(u)}" target="_blank" rel="noopener">${esc(r.web.replace(/^https?:\/\/(www\.)?/,"").slice(0,40))}</a>`}
+ h+=`<br><span class="pill" style="background:var(${c})">${SRCNAME[r.src]}</span> `;
+ if(r.osm)h+=`<a href="https://www.openstreetmap.org/${r.osm}" target="_blank" rel="noopener">в OSM</a>`;
+ else h+=`<a href="https://www.openstreetmap.org/edit#map=20/${r.lat}/${r.lon}" target="_blank" rel="noopener">проверить и добавить в OSM</a>`;
+ return h;
+}
+function visible(){const q=st.q;return R.filter(r=>st.cats.has(r.cat)&&(st.src===null||r.src===st.src)&&(!q||r.text.includes(q)))}
+function render(){
+ const v=visible();layer.clearLayers();v.forEach(r=>layer.addLayer(markers[r.i]));
+ document.getElementById("cnt").textContent=`Показано: ${v.length}`;
+ const top=v.filter(r=>r.name).slice(0,300);
+ document.getElementById("list").innerHTML=top.map(r=>`<div class="row" tabindex="0" data-i="${r.i}"><b><span class="dot" style="background:var(${["--both","--osm","--ovt"][r.src]})"></span>${esc(r.name)}</b><span>${esc([r.type,r.addr].filter(Boolean).join(" · "))}</span></div>`).join("")+(v.length>top.length?`<div class="row" style="cursor:default"><span>Список показывает первые 300 объектов с названием. Уточните поиск, чтобы увидеть остальные. На карте видны все ${v.length}.</span></div>`:"");
+}
+function go(i){const r=R[i];map.setView([r.lat,r.lon],18);markers[i].openPopup();if(innerWidth<=760)panel.classList.add("min")}
+document.getElementById("q").addEventListener("input",e=>{st.q=e.target.value.trim().toLowerCase();render()});
+document.getElementById("src").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;st.src=SRC[b.dataset.i][1];document.querySelectorAll("#src button").forEach(x=>x.setAttribute("aria-pressed",x===b));render()});
+document.getElementById("cats").addEventListener("click",e=>{const b=e.target.closest(".chip");if(!b)return;const i=+b.dataset.i;st.cats.has(i)?st.cats.delete(i):st.cats.add(i);b.setAttribute("aria-pressed",st.cats.has(i));render()});
+const list=document.getElementById("list");
+list.addEventListener("click",e=>{const r=e.target.closest(".row[data-i]");if(r)go(+r.dataset.i)});
+list.addEventListener("keydown",e=>{const r=e.target.closest(".row[data-i]");if(r&&e.key==="Enter")go(+r.dataset.i)});
+const panel=document.getElementById("panel"),tg=document.getElementById("toggle");
+tg.addEventListener("click",()=>{const m=panel.classList.toggle("min");tg.textContent=m?"Развернуть":"Свернуть";tg.setAttribute("aria-expanded",!m)});
+</script>
+</body>
+</html>

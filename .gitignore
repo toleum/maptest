@@ -1,0 +1,4 @@
+raw/
+site/data.json
+site/places.csv
+__pycache__/
