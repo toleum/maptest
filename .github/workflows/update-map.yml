@@ -6,7 +6,7 @@ on:
   workflow_dispatch:        # кнопка Run workflow во вкладке Actions
   push:
     branches: [main]
-    paths: ["config.json", "scripts/**", "site/index.html", ".github/workflows/**"]
+    paths: ["config.json", "requirements.txt", "scripts/**", "site/index.html", ".github/workflows/**"]
 
 permissions:
   contents: write
